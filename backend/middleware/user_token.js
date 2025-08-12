@@ -4,7 +4,7 @@ const user_token = (req, res, next) => {
   try {
     const secret_key = "secret";
     const token = req.headers["authorization"].split(" ")[1];
-    console.log("Token: ", token);
+    // console.log("Token: ", token);
     if (!token) {
       return res.status(403).json({ message: "No token provided" });
     }

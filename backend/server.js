@@ -13,6 +13,8 @@ const app = Express();
 
 app.use(Express.json());
 app.use(Cors());
+app.use(Express.static("uploads"));
+app.use(Express.urlencoded({ extended: true }));
 
 // Tables
 User.Create_User_Table();
