@@ -8,11 +8,12 @@ const Reports = {
         id INT AUTO_INCREMENT PRIMARY KEY,
         user_id INT NOT NULL,
         photo_url VARCHAR(255) NOT NULL,
+        proof_photo_url VARCHAR(255) NULL,
         description TEXT NOT NULL,
         latitude DECIMAL(10,7) NOT NULL,
         longitude DECIMAL(10,7) NOT NULL,
         status ENUM('Pending','In Progress','Resolved') NOT NULL DEFAULT 'Pending',
-        created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
         FOREIGN KEY (user_id) REFERENCES users(id)
             ON DELETE CASCADE)
@@ -39,6 +40,18 @@ const Reports = {
       return result.insertId;
     } catch (error) {
       console.error("Error creating report in model : ", error);
+      throw error;
+    }
+  },
+
+  Report_Resolved: async (id, new_status, proof_photo_url) => {
+    try {
+      const [result] = await connection.query(
+        "UPDATE reports SET status = ?, proof_photo_url = ? WHERE id = ?",
+        [new_status, proof_photo_url, id]
+      );
+      return result.affectedRows;
+    } catch (error) {
       throw error;
     }
   },

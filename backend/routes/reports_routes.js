@@ -1,6 +1,9 @@
 import Express from "express";
 import Reports_Controller from "../controllers/reports_controller.js";
-import { upload_report_image } from "../utility/multer.js";
+import {
+  upload_report_image,
+  upload_resolve_image,
+} from "../utility/multer.js";
 
 const router = Express.Router();
 
@@ -33,6 +36,12 @@ router.get("/get_users_stats", Reports_Controller.User_Stats_Report);
 router.put(
   "/update_status_report/:id",
   Reports_Controller.Update_Report_Status
+);
+
+router.put(
+  "/reports/resolved/:id",
+  upload_resolve_image.single("proof_photo_url"),
+  Reports_Controller.Report_Resolved
 );
 
 export default router;

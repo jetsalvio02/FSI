@@ -35,6 +35,42 @@ const Reports_Controller = {
     }
   },
 
+  Report_Resolved: async (req, res) => {
+    const { id } = req.params;
+    const { new_status } = req.body;
+
+    console.log("Body:", req.body);
+    console.log("File:", req.file);
+
+    if (!req.file) {
+      return res.status(400).json({
+        message: "No proof photo uploaded under field 'proof_photo_url' ",
+      });
+    }
+
+    try {
+      const proof_photo_file_path = req.file ? req.file.filename : null;
+
+      const updated = await Reports.Report_Resolved(
+        id,
+        new_status,
+        proof_photo_file_path
+      );
+
+      if (!updated) {
+        return res.status(404).json({ message: "Report not found" });
+      }
+
+      res.status(200).json({
+        message: "Report resolved successfully",
+        proof_photo_url: proof_photo_file_path,
+      });
+    } catch (error) {
+      console.error("Error resolving report_resolved in controller:", error);
+      res.status(500).json({ message: "Server error", error });
+    }
+  },
+
   Delete_Report: async (req, res) => {
     const { id } = req.params;
     try {

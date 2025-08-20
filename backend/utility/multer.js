@@ -41,4 +41,21 @@ const upload_report_image = Multer({
   },
 });
 
-export { upload_report_image };
+const upload_resolve_image = Multer({
+  storage: storage("resolve_images"),
+  // limits: { fileSize: 5 * 1024 * 1024 }, // optional
+  fileFilter: (req, file, cb) => {
+    const filetypes = /jpeg|jpg|png/;
+    const extname = filetypes.test(
+      path.extname(file.originalname).toLowerCase()
+    );
+    const mimetype = filetypes.test(file.mimetype);
+
+    if (extname && mimetype) {
+      return cb(null, true);
+    }
+    cb(new Error("Only JPEG/PNG images are allowed"));
+  },
+});
+
+export { upload_report_image, upload_resolve_image };
