@@ -5,6 +5,7 @@ import { UserProvider, useAuth } from "../contexts/UsertContext";
 import { View, Text, TouchableOpacity } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { useNavigation } from "expo-router";
+import { Platform } from "react-native";
 
 // Screens
 // import HomeScreen from "../screens/HomeScreen";
@@ -16,6 +17,23 @@ import { useNavigation } from "expo-router";
 
 import * as SecureStore from "expo-secure-store";
 
+// ✅ Only load Leaflet on Web
+if (Platform.OS === "web") {
+  const L = require("leaflet");
+  require("leaflet/dist/leaflet.css");
+
+  const markerIcon2x = require("leaflet/dist/images/marker-icon-2x.png");
+  const markerIcon = require("leaflet/dist/images/marker-icon.png");
+  const markerShadow = require("leaflet/dist/images/marker-shadow.png");
+
+  delete L.Icon.Default.prototype._getIconUrl;
+  L.Icon.Default.mergeOptions({
+    iconRetinaUrl: markerIcon2x,
+    iconUrl: markerIcon,
+    shadowUrl: markerShadow,
+  });
+}
+
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 // Custom header with logout button
@@ -25,7 +43,7 @@ function CustomHeader() {
   const handleLogout = async () => {
     await SecureStore.deleteItemAsync("user_token");
     logout();
-    navigation.navigate("(auth)/login"); // Navigate to login screen
+    navigation.navigate("/"); // Navigate to login screen
   };
 
   return (
@@ -50,6 +68,9 @@ function CustomHeader() {
 const query_client = new QueryClient();
 
 export default function RootLayout() {
+  const initialRoute =
+    Platform.OS === "web" ? "screens/HomeScreen" : "(auth)/login";
+
   return (
     <QueryClientProvider client={query_client}>
       <UserProvider>
@@ -57,7 +78,7 @@ export default function RootLayout() {
           <Drawer>
             {/* Auth screens */}
             <Drawer.Screen
-              name="(auth)/login"
+              name="(auth)/index"
               options={{
                 headerShown: false,
                 drawerLabel: () => null,

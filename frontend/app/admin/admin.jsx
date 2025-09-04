@@ -21,7 +21,7 @@ import {
   Platform,
 } from "react-native";
 import { BarChart, LineChart, PieChart } from "react-native-chart-kit";
-import MapView, { Marker, PROVIDER_GOOGLE, UrlTile } from "react-native-maps";
+// import MapView, { Marker, PROVIDER_GOOGLE, UrlTile } from "react-native-maps";
 import * as Location from "expo-location";
 import { useBaseUrl } from "../../utility/useBaseURL";
 import { useBaseUrl_image } from "../../utility/useImageURL";
@@ -32,6 +32,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as ImagePicker from "expo-image-picker";
 import * as mime from "react-native-mime-types";
 import { useQuery } from "@tanstack/react-query";
+import Maps_Dynamic from "../../components/Maps_Dynamic";
+// import { Platform } from "react-native";
 
 const screenWidth = Dimensions.get("window").width;
 
@@ -175,7 +177,8 @@ const Admin = () => {
   const fetch_all_reports = async () => {
     try {
       const response = await Axios.get(`${baseUrl}/get_all_reports`);
-      const fetched_reports = response.data.reports;
+      // const fetched_reports = response.data.reports;
+      const fetched_reports = response.data?.reports ?? [];
       // console.log(fetched_reports);
       // set_reports(fetched_reports);
       return fetched_reports;
@@ -186,31 +189,116 @@ const Admin = () => {
     }
   };
 
+  // const user_data_stats = async () => {
+  //   const usersData = await Axios.get(`${baseUrl}/get_users_stats`);
+  //   // set_users_stats(usersData.data.users_stats);
+  //   return usersData.data.users_stats;
+  // };
+
   const user_data_stats = async () => {
     const usersData = await Axios.get(`${baseUrl}/get_users_stats`);
-    // set_users_stats(usersData.data.users_stats);
-    return usersData.data.users_stats;
+    return usersData.data?.users_stats ?? []; // ✅ never undefined
   };
 
-  const fetch_report_address = async () => {
-    const addressList = await Promise.all(
-      reports.map(async (report) => {
-        const [address] = await Location.reverseGeocodeAsync({
-          latitude: parseFloat(report.latitude),
-          longitude: parseFloat(report.longitude),
-        });
+  // const fetch_report_address = async (reports) => {
+  //   if (Platform.OS === "web") {
+  //     // fallback: use Nominatim API
+  //     const addressList = await Promise.all(
+  //       reports.map(async (report) => {
+  //         try {
+  //           const res = await fetch(
+  //             `https://nominatim.openstreetmap.org/reverse?format=json&lat=${report.latitude}&lon=${report.longitude}`
+  //           );
+  //           const data = await res.json();
+  //           console.log(data);
+  //           return {
+  //             id: report.id,
+  //             full_address: data.display_name || "Unknown Location",
+  //           };
+  //         } catch (e) {
+  //           return { id: report.id, full_address: "Unknown Location" };
+  //         }
+  //       })
+  //     );
+  //     return addressList;
+  //   } else {
+  //     // native mobile: use expo-location
+  //     const addressList = await Promise.all(
+  //       reports.map(async (report) => {
+  //         const [address] = await Location.reverseGeocodeAsync({
+  //           latitude: parseFloat(report.latitude),
+  //           longitude: parseFloat(report.longitude),
+  //         });
+  //         return {
+  //           id: report.id,
+  //           full_address: `${address.street ? address.street + ", " : ""}${
+  //             address.city || ""
+  //           }`,
+  //         };
+  //       })
+  //     );
+  //     return addressList;
+  //   }
+  // };
 
-        return {
-          id: report.id,
-          full_address: `${address.street ? address.street + ", " : ""}${
-            address.city ? address.city : ""
-          }`,
-        };
-      })
-    );
+  const fetch_report_address = async (reports) => {
+    if (Platform.OS === "web") {
+      // 🌐 Web: use Nominatim API
+      const addressList = await Promise.all(
+        reports.map(async (report) => {
+          try {
+            const res = await fetch(
+              `https://nominatim.openstreetmap.org/reverse?format=json&lat=${report.latitude}&lon=${report.longitude}&addressdetails=1`
+            );
+            const data = await res.json();
+            const addr = data.address || {};
 
-    // set_address_data(addressList);
-    return addressList;
+            const full_address = [
+              addr.road, // street
+              addr.quarter, // barangay equivalent
+              addr.city, // city
+            ]
+              .filter(Boolean) // remove undefined
+              .join(", ");
+
+            return {
+              id: report?.id,
+              full_address: full_address,
+            };
+          } catch (e) {
+            return {
+              id: report.id,
+              full_address: `Lat: ${report.latitude}, Lng: ${report.longitude}`,
+            };
+          }
+        })
+      );
+      return addressList;
+    } else {
+      // 📱 Native: use expo-location
+      const addressList = await Promise.all(
+        reports.map(async (report) => {
+          const [address] = await Location.reverseGeocodeAsync({
+            latitude: parseFloat(report.latitude),
+            longitude: parseFloat(report.longitude),
+          });
+
+          const full_address = [
+            address.street,
+            address.district, // often used as barangay in PH
+            address.city,
+          ]
+            .filter(Boolean)
+            .join(", ");
+
+          return {
+            id: report.id,
+            full_address: full_address,
+          };
+        })
+      );
+      return addressList;
+    }
   };
 
   // const [addresses, setAddresses] = useState({});
@@ -235,9 +323,9 @@ const Admin = () => {
 
   const { data: report_address = [], refetch: refetch_report_address } =
     useQuery({
-      queryKey: ["report_address"],
-      queryFn: fetch_report_address,
-      enabled: reports.length > 0,
+      queryKey: ["report_address", reports],
+      queryFn: () => fetch_report_address(reports),
+      enabled: reports?.length > 0,
     });
 
   // console.log(report_address);
@@ -1184,7 +1272,7 @@ const Admin = () => {
             <View>
               <Text style={styles.chartTitle}>Location Reports</Text>
               <View style={styles.mapContainer}>
-                {location ? (
+                {/* {location ? (
                   <MapView
                     style={styles.map}
                     initialRegion={{
@@ -1197,29 +1285,14 @@ const Admin = () => {
                     showsMyLocationButton={true}
                     followsUserLocation={true}
                     mapType="hybrid"
-                    // userLocationUpdateInterval={1000}
-                    minZoomLevel={0} // prevent zooming out too far (world view)
-                    maxZoomLevel={18.8} // prevent zooming in too close (street-level max)
+                    minZoomLevel={0}
+                    maxZoomLevel={18.8}
                   >
-                    {/* OpenStreetMap Tiles */}
-                    {/* <UrlTile
-                      // urlTemplate="https://cartodb-basemaps-a.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png"
-                      urlTemplate="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-                      maximumZ={19}
-                      flipY={false}
-                    /> */}
+                    <UrlTile urlTemplate="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}" />
 
-                    {/* Satellite imagery */}
-                    <UrlTile
-                      urlTemplate="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-                      // maximumZ={19}
-                    />
-
-                    {/* Streets/labels overlay */}
                     <UrlTile
                       urlTemplate="https://cartodb-basemaps-a.global.ssl.fastly.net/light_only_labels/{z}/{x}/{y}.png"
-                      // maximumZ={19}
-                      zIndex={1} // makes sure labels are on top
+                      zIndex={1}
                     />
 
                     {reports
@@ -1245,7 +1318,12 @@ const Admin = () => {
                   <View style={styles.loadingMap}>
                     <Text>Loading map...</Text>
                   </View>
-                )}
+                )} */}
+                <Maps_Dynamic
+                  reports={reports}
+                  location={location}
+                  set_selected_report={set_selected_report}
+                />
                 <Modal
                   visible={selected_report !== null}
                   transparent
